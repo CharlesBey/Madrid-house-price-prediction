@@ -48,57 +48,49 @@ def load_model():
         model = pickle.load(model_file)
     return model
 
-model = load_model()
+with open('scaler.pkl', 'rb') as model_file:
+    scaler_loaded = pickle.load(model_file)
+
+best_rf = load_model()
+
+with open('scaler.pkl', 'rb') as model_file:
+    scaler_loaded = pickle.load(model_file)
 
 # Define the function for predicting price
 def predict_price(location, sq_mt_built, built_year, has_parking):
     # Create a dictionary to hold the input data
-    input_data = {
-        'location': location,
-        'sq_mt_built': sq_mt_built,
-        'built_year': built_year,
-        'has_parking': has_parking,
-    }
-
+    input_data = {}
+    
     # Set the location dummy variable
-    location_data = [1 if loc == location else 0 for loc in location_names]
+    for loc in location_names:
+        input_data[loc] = 1 if loc == location else 0
 
-    # Add the location data to input_data
-    for i, loc in enumerate(location_names):
-        input_data[loc] = location_data[i]
+    # Add the other input features to the dictionary
+    input_data['sq_mt_built'] = sq_mt_built
+    input_data['built_year'] = built_year
+    input_data['has_parking'] = has_parking
 
-    # Convert input_data into a DataFrame
+    # Convert the input data into a DataFrame
     input_df = pd.DataFrame([input_data])
-    input_df.drop(columns=['location'], inplace=True)
 
     # Standardize the input data using the previously trained scaler
-    scaler = StandardScaler()
-    scaler.fit(input_df)
-    input_scaled = scaler.fit_transform(input_df)
+    input_scaled = scaler_loaded.transform(input_df)
 
     # Make the prediction using the model
-    prediction = model.predict(input_scaled)
+    prediction = np.exp(best_rf.predict(input_scaled))[0]
 
-    # Convert the prediction back to the original scale
-    predicted_price_original_scale = np.exp(prediction[0])
-
-    return predicted_price_original_scale
+    return prediction
 
 # Streamlit app layout
 st.title('Madrid Real Estate Price Predictor')
 
 # User input fields
 location = st.selectbox('Location', location_names)
-sq_mt_built = st.number_input('Square Meters Built', min_value=0)
-built_year = st.number_input('Year Built', min_value=2000)
-has_parking = st.radio('Has Parking', ['Yes', 'No'])
+# Get the other input values from the user
+sq_mt_built = st.number_input('Square Meters Built', min_value=200)
+built_year = st.number_input('Year Built', min_value = 1900)
+has_parking = 1 if st.radio('Has Parking', ['Yes', 'No']) == 'Yes' else 0
 
-if has_parking == 'Yes':
-    has_parking_value = 1
-else:
-    has_parking_value = 0
-
-# Predict the price when the user clicks the button
-if st.button('Predict Price'):
-    predicted_price = predict_price(location, sq_mt_built, built_year, has_parking_value)
-    st.write(f'Predicted Price: {predicted_price:.2f} Euros')
+# Make the prediction
+prediction = predict_price(location, sq_mt_built, built_year, has_parking)
+st.success(f'Predicted Price: {prediction:.2f} Euros')
