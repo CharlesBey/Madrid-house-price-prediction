@@ -101,4 +101,4 @@ else:
 # Predict the price when the user clicks the button
 if st.button('Predict Price'):
     predicted_price = predict_price(location, sq_mt_built, built_year, has_parking_value)
-    st.write(f'Predicted Price: {predicted_price:.2f} Euros')
+    st.success(f'Predicted Price: {predicted_price:,.0f} Euros')
